@@ -43,6 +43,5 @@ int main()
     int x=3, y=2;
     int dx=0, dy=1; //Derecha
     cout << "Minas: " << contarMinas(arreglo,x,y,dx,dy,n,m);
-    std::cout << "Hello, World!" << std::endl;
     return 0;
 }
