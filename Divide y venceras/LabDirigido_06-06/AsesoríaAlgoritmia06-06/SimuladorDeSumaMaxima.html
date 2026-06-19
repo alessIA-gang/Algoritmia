@@ -1,0 +1,218 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-mono); }
+.root { padding: 1rem 0; }
+.controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 1rem; }
+.ctrl-label { font-size: 12px; color: var(--color-text-secondary); }
+input[type=text] { font-family: var(--font-mono); font-size: 13px; padding: 6px 10px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-secondary); background: var(--color-background-primary); color: var(--color-text-primary); width: 280px; }
+button { font-size: 13px; padding: 6px 14px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-secondary); background: var(--color-background-primary); color: var(--color-text-primary); cursor: pointer; transition: background 0.15s; }
+button:hover { background: var(--color-background-secondary); }
+button.primary { background: #185FA5; color: #E6F1FB; border-color: #185FA5; }
+button.primary:hover { background: #0C447C; }
+.stepper { display: flex; align-items: center; gap: 8px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+.step-info { font-size: 12px; color: var(--color-text-secondary); min-width: 80px; }
+.array-display { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 1.5rem; align-items: flex-end; }
+.cell { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.cell-val { font-size: 13px; font-weight: 500; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-tertiary); background: var(--color-background-secondary); color: var(--color-text-primary); transition: background 0.3s, color 0.3s, border-color 0.3s; }
+.cell-idx { font-size: 10px; color: var(--color-text-secondary); }
+.cell-val.active { background: #B5D4F4; border-color: #378ADD; color: #042C53; }
+.cell-val.left { background: #C0DD97; border-color: #639922; color: #173404; }
+.cell-val.right { background: #FAC775; border-color: #BA7517; color: #412402; }
+.cell-val.cross { background: #F4C0D1; border-color: #D4537E; color: #4B1528; }
+.cell-val.result { background: #378ADD; border-color: #185FA5; color: #E6F1FB; font-weight: 700; }
+.log-box { font-size: 12px; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); background: var(--color-background-secondary); padding: 12px 14px; max-height: 160px; overflow-y: auto; line-height: 1.8; }
+.log-entry { color: var(--color-text-secondary); border-bottom: 0.5px solid var(--color-border-tertiary); padding: 3px 0; }
+.log-entry:last-child { border-bottom: none; }
+.log-entry.cur { color: var(--color-text-primary); font-weight: 500; }
+.log-entry .tag { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 4px; margin-right: 4px; }
+.tag-split { background: #B5D4F4; color: #042C53; }
+.tag-cross { background: #F4C0D1; color: #4B1528; }
+.tag-merge { background: #C0DD97; color: #173404; }
+.tag-base { background: #D3D1C7; color: #2C2C2A; }
+.tag-result { background: #378ADD; color: #E6F1FB; }
+.legend { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 1rem; }
+.leg { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--color-text-secondary); }
+.leg-dot { width: 12px; height: 12px; border-radius: 3px; }
+.section-sep { height: 0.5px; background: var(--color-border-tertiary); margin: 1rem 0; }
+.result-bar { font-size: 13px; padding: 8px 14px; border-radius: var(--border-radius-md); background: var(--color-background-info); color: var(--color-text-info); border: 0.5px solid var(--color-border-info); display: none; margin-bottom: 1rem; }
+.tree-wrap { overflow-x: auto; margin-bottom: 1rem; }
+svg text { font-family: var(--font-mono); }
+</style>
+<h2 class="sr-only">Simulador interactivo del algoritmo Suma Máxima de Subarreglo por Divide y Vencerás</h2>
+<div class="root">
+  <div class="controls">
+    <span class="ctrl-label">Arreglo:</span>
+    <input type="text" id="arrInput" value="-2,-5,6,-2,-3,1,5,-6" />
+    <button class="primary" onclick="init()">Cargar ↩</button>
+  </div>
+
+  <div class="legend">
+    <div class="leg"><div class="leg-dot" style="background:#B5D4F4"></div> izquierda</div>
+    <div class="leg"><div class="leg-dot" style="background:#FAC775"></div> derecha</div>
+    <div class="leg"><div class="leg-dot" style="background:#F4C0D1"></div> cruce</div>
+    <div class="leg"><div class="leg-dot" style="background:#378ADD"></div> máximo final</div>
+  </div>
+
+  <div class="array-display" id="arrDisplay"></div>
+
+  <div class="result-bar" id="resultBar"></div>
+
+  <div class="stepper">
+    <button onclick="stepBack()">← Anterior</button>
+    <button onclick="stepFwd()">Siguiente →</button>
+    <button onclick="runAll()">▶ Ver todo</button>
+    <button onclick="init()">↺ Reiniciar</button>
+    <span class="step-info" id="stepInfo">Paso 0 / 0</span>
+  </div>
+
+  <div class="section-sep"></div>
+  <div class="log-box" id="logBox"></div>
+  <div class="section-sep"></div>
+  <div class="tree-wrap"><svg id="treeSvg" width="100%" height="20"></svg></div>
+</div>
+
+<script>
+let arr = [], steps = [], cur = -1;
+
+function parseArr() {
+  const raw = document.getElementById('arrInput').value;
+  return raw.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+}
+
+function buildSteps(a) {
+  const st = [];
+  function rec(lo, hi, depth) {
+    if (lo === hi) {
+      st.push({ type: 'base', lo, hi, depth, val: a[lo], msg: `Caso base: arr[${lo}] = ${a[lo]}` });
+      return a[lo];
+    }
+    const mid = Math.floor((lo + hi) / 2);
+    st.push({ type: 'split', lo, hi, mid, depth, msg: `Dividir [${lo}..${hi}] en [${lo}..${mid}] y [${mid+1}..${hi}]` });
+    const L = rec(lo, mid, depth + 1);
+    const R = rec(mid + 1, hi, depth + 1);
+    const crossVal = cross(a, lo, mid, hi, st, depth);
+    const mx = Math.max(L, R, crossVal);
+    const winner = mx === L ? 'izquierda' : mx === R ? 'derecha' : 'cruce';
+    st.push({ type: 'merge', lo, hi, mid, depth, L, R, cross: crossVal, val: mx, winner, msg: `Combinar [${lo}..${hi}]: izq=${L}, der=${R}, cruce=${crossVal} → máx=${mx} (${winner})` });
+    return mx;
+  }
+  function cross(a, lo, mid, hi, st, depth) {
+    let sum = 0, bestL = -Infinity, bestR = -Infinity;
+    const leftIdx = [], rightIdx = [];
+    for (let i = mid; i >= lo; i--) { sum += a[i]; if (sum > bestL) { bestL = sum; } leftIdx.unshift(i); }
+    sum = 0;
+    for (let i = mid + 1; i <= hi; i++) { sum += a[i]; if (sum > bestR) { bestR = sum; } rightIdx.push(i); }
+    st.push({ type: 'cross', lo, hi, mid, depth, bestL, bestR, val: bestL + bestR, leftIdx, rightIdx, msg: `Cruce [${lo}..${hi}]: acum izq desde mid=${mid} → ${bestL}, acum der desde ${mid+1} → ${bestR}, suma=${bestL+bestR}` });
+    return bestL + bestR;
+  }
+  rec(0, a.length - 1, 0);
+  return st;
+}
+
+function renderArr(s) {
+  const d = document.getElementById('arrDisplay');
+  d.innerHTML = arr.map((v, i) => {
+    let cls = '';
+    if (s) {
+      if (s.type === 'split' || s.type === 'merge') {
+        if (i >= s.lo && i <= s.mid) cls = s.type === 'merge' && s.winner === 'izquierda' ? 'result' : 'left';
+        else if (i > s.mid && i <= s.hi) cls = s.type === 'merge' && s.winner === 'derecha' ? 'result' : 'right';
+      } else if (s.type === 'cross') {
+        if (s.leftIdx.includes(i) || s.rightIdx.includes(i)) cls = s.winner ? 'result' : 'cross';
+        else cls = '';
+      } else if (s.type === 'base') {
+        if (i === s.lo) cls = 'active';
+      }
+    }
+    return `<div class="cell"><div class="cell-val ${cls}">${v}</div><div class="cell-idx">${i}</div></div>`;
+  }).join('');
+}
+
+function renderLog() {
+  const box = document.getElementById('logBox');
+  box.innerHTML = steps.map((s, i) => {
+    const isCur = i === cur;
+    const tagMap = { split: 'tag-split', cross: 'tag-cross', merge: 'tag-merge', base: 'tag-base', result: 'tag-result' };
+    const labelMap = { split: 'DIVIDIR', cross: 'CRUCE', merge: 'COMBINAR', base: 'BASE', result: 'RESULTADO' };
+    return `<div class="log-entry ${isCur ? 'cur' : ''}"><span class="tag ${tagMap[s.type] || ''}">${labelMap[s.type] || s.type}</span>${s.msg}</div>`;
+  }).join('');
+  if (cur >= 0) {
+    const entries = box.querySelectorAll('.log-entry');
+    if (entries[cur]) entries[cur].scrollIntoView({ block: 'nearest' });
+  }
+}
+
+function renderTree() {
+  const svg = document.getElementById('treeSvg');
+  const W = svg.parentElement.clientWidth || 640;
+  if (!steps.length) { svg.setAttribute('height', 20); svg.innerHTML = ''; return; }
+  const maxDepth = Math.max(...steps.map(s => s.depth));
+  const H = (maxDepth + 2) * 54 + 20;
+  svg.setAttribute('height', H);
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const nodes = steps.filter(s => s.type === 'split' || s.type === 'base' || s.type === 'merge');
+  const treeNodes = [];
+  function layout(lo, hi, depth, xlo, xhi) {
+    const xc = (xlo + xhi) / 2;
+    const y = depth * 54 + 30;
+    const active = steps[cur] && steps[cur].lo === lo && steps[cur].hi === hi;
+    treeNodes.push({ lo, hi, depth, xc, y, active });
+    if (lo < hi) {
+      const mid = Math.floor((lo + hi) / 2);
+      layout(lo, mid, depth + 1, xlo, xc);
+      layout(mid + 1, hi, depth + 1, xc, xhi);
+    }
+  }
+  layout(0, arr.length - 1, 0, 10, W - 10);
+  let html = '';
+  treeNodes.forEach(n => {
+    const mid = Math.floor((n.lo + n.hi) / 2);
+    if (n.lo < n.hi) {
+      const lc = treeNodes.find(c => c.lo === n.lo && c.hi === mid && c.depth === n.depth + 1);
+      const rc = treeNodes.find(c => c.lo === mid + 1 && c.hi === n.hi && c.depth === n.depth + 1);
+      if (lc) html += `<line x1="${n.xc}" y1="${n.y}" x2="${lc.xc}" y2="${lc.y}" stroke="var(--color-border-secondary)" stroke-width="1"/>`;
+      if (rc) html += `<line x1="${n.xc}" y1="${n.y}" x2="${rc.xc}" y2="${rc.y}" stroke="var(--color-border-secondary)" stroke-width="1"/>`;
+    }
+  });
+  treeNodes.forEach(n => {
+    const fill = n.active ? '#378ADD' : (n.lo === n.hi ? '#B4B2A9' : '#E6F1FB');
+    const tc = n.active ? '#E6F1FB' : (n.lo === n.hi ? '#2C2C2A' : '#042C53');
+    const r = 20;
+    const label = n.lo === n.hi ? `${arr[n.lo]}` : `[${n.lo},${n.hi}]`;
+    html += `<rect x="${n.xc - r}" y="${n.y - 13}" width="${r*2}" height="26" rx="4" fill="${fill}" stroke="${n.active ? '#185FA5' : 'var(--color-border-tertiary)'}" stroke-width="${n.active ? 1.5 : 0.5}"/>`;
+    html += `<text x="${n.xc}" y="${n.y + 5}" text-anchor="middle" font-size="11" fill="${tc}">${label}</text>`;
+  });
+  svg.innerHTML = html;
+}
+
+function applyStep() {
+  const s = cur >= 0 ? steps[cur] : null;
+  renderArr(s);
+  renderLog();
+  renderTree();
+  document.getElementById('stepInfo').textContent = `Paso ${Math.max(cur + 1, 0)} / ${steps.length}`;
+  const rb = document.getElementById('resultBar');
+  if (cur === steps.length - 1) {
+    const last = steps[steps.length - 1];
+    rb.textContent = `✓ Suma máxima = ${last.val}`;
+    rb.style.display = 'block';
+  } else { rb.style.display = 'none'; }
+}
+
+function stepFwd() { if (cur < steps.length - 1) { cur++; applyStep(); } }
+function stepBack() { if (cur > -1) { cur--; applyStep(); } }
+let autoTimer = null;
+function runAll() {
+  if (autoTimer) { clearInterval(autoTimer); autoTimer = null; return; }
+  autoTimer = setInterval(() => { if (cur < steps.length - 1) { cur++; applyStep(); } else { clearInterval(autoTimer); autoTimer = null; } }, 600);
+}
+function init() {
+  arr = parseArr();
+  if (arr.length < 2 || arr.length > 12) { alert('Ingresa entre 2 y 12 números'); return; }
+  steps = buildSteps(arr);
+  cur = -1;
+  applyStep();
+}
+init();
+</script>
